@@ -1,53 +1,61 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
-import { UsersService } from '../users/users.service';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
-import * as bcrypt from 'bcryptjs';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { UsersService } from '../users/users.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
-    private jwtService: JwtService
+    private jwtService: JwtService,
   ) {}
 
-  async register(dto: RegisterDto) {
-    const userExists = await this.usersService.findByEmail(dto.email);
-    if (userExists) {
-      throw new BadRequestException('El correo ya está registrado');
+  async register(data: { email: string; password: string }) {
+    const { email, password } = data;
+
+    const existingUser = await this.usersService.findByEmail(email);
+    if (existingUser) {
+      throw new UnauthorizedException('El correo ya está registrado.');
     }
 
-    const user = await this.usersService.create(dto.email, dto.password);
+    const newUser = await this.usersService.create(email, password);
+
+    const token = this.jwtService.sign({ sub: newUser.id, email: newUser.email });
+
     return {
-      message: 'Usuario registrado exitosamente',
+      message: 'Usuario registrado correctamente.',
       user: {
-        id: user.id,
-        email: user.email,
+        id: newUser.id,
+        email: newUser.email,
       },
+      token,
     };
   }
 
-  async login(dto: LoginDto) {
-    const user = await this.usersService.findByEmail(dto.email);
+  async login(data: { email: string; password: string }) {
+    const { email, password } = data;
+
+    const user = await this.usersService.findByEmail(email);
+
     if (!user) {
-      throw new UnauthorizedException('Credenciales inválidas');
+      throw new UnauthorizedException('Credenciales inválidas.');
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Credenciales inválidas');
+      throw new UnauthorizedException('Credenciales inválidas.');
     }
 
-    const payload = { sub: user.id, email: user.email };
-    const token = await this.jwtService.signAsync(payload);
+    const token = this.jwtService.sign({ sub: user.id, email: user.email });
 
     return {
-      access_token: token,
+      message: 'Login exitoso.',
       user: {
         id: user.id,
         email: user.email,
       },
+      token,
     };
   }
 }

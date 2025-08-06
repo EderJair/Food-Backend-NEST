@@ -8,7 +8,7 @@ import { UsersModule } from '../users/users.module';
   imports: [
     UsersModule,
     JwtModule.register({
-      secret: 'meteletierritaac1nomas', // Puedes moverla a ENV luego
+      secret: 'meteletierritaac1nomas',
       signOptions: { expiresIn: '1h' },
     }),
   ],
